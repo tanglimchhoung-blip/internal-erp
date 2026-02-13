@@ -1,6 +1,7 @@
 // ===============================
 // Internal ERP - app.js (Plain JS)
-// FIX: Use "sb" as Supabase client to avoid name collision
+// Stable, beginner-friendly, no frameworks
+// IMPORTANT FIX: use "sb" as the Supabase client (avoid naming collision)
 // ===============================
 
 // 1) PASTE YOUR SUPABASE SETTINGS HERE
@@ -196,17 +197,21 @@ async function loadAllLists() {
   LISTS.delivery = del.data || [];
   LISTS.expcats = exp.data || [];
 
+  // Inventory selects
   setSelectOptions($("invLocation"), LISTS.locations, "Select...");
   setSelectOptions($("invCategory"), LISTS.categories, "Select...");
   setSelectOptions($("invColor"), LISTS.colors, "Select...");
   setSelectOptions($("invSize"), LISTS.sizes, "Select...");
 
+  // Sales header selects
   setSelectOptions($("soLocation"), LISTS.locations, "Select...");
   setSelectOptions($("soDelivery"), LISTS.delivery, "Select...");
 
+  // Expenses selects
   setSelectOptions($("expLocation"), LISTS.locations, "Select...");
   setSelectOptions($("expCategory"), LISTS.expcats, "Select...");
 
+  // Auto-select first option if available
   if (LISTS.locations[0]) {
     $("invLocation").value = String(LISTS.locations[0].id);
     $("soLocation").value = String(LISTS.locations[0].id);
@@ -371,35 +376,33 @@ function renderItemsTable() {
   currentItems.forEach((it, idx) => {
     const tr = document.createElement("tr");
 
-    const catOptions = LISTS.categories.map(c => `<option value="${c.id}" ${String(it.product_category_id)===String(c.id)?"selected":""}>${c.name}</option>`).join("");
-    const colorOptions = `<option value="">—</option>` + LISTS.colors.map(c => `<option value="${c.id}" ${String(it.color_id)===String(c.id)?"selected":""}>${c.name}</option>`).join("");
-    const sizeOptions  = `<option value="">—</option>` + LISTS.sizes.map(s => `<option value="${s.id}" ${String(it.size_id)===String(s.id)?"selected":""}>${s.name}</option>`).join("");
+    const catOptions = LISTS.categories
+      .map(c => `<option value="${c.id}" ${String(it.product_category_id)===String(c.id)?"selected":""}>${c.name}</option>`)
+      .join("");
+
+    const colorOptions =
+      `<option value="">—</option>` +
+      LISTS.colors
+        .map(c => `<option value="${c.id}" ${String(it.color_id)===String(c.id)?"selected":""}>${c.name}</option>`)
+        .join("");
+
+    const sizeOptions =
+      `<option value="">—</option>` +
+      LISTS.sizes
+        .map(s => `<option value="${s.id}" ${String(it.size_id)===String(s.id)?"selected":""}>${s.name}</option>`)
+        .join("");
 
     const lineTotal = num(it.qty) * num(it.unit_price);
 
     tr.innerHTML = `
-      <td>
-        <select data-idx="${idx}" data-field="product_category_id">${catOptions}</select>
-      </td>
-      <td>
-        <input data-idx="${idx}" data-field="product_name" type="text" value="${it.product_name ?? ""}" />
-      </td>
-      <td>
-        <select data-idx="${idx}" data-field="color_id">${colorOptions}</select>
-      </td>
-      <td>
-        <select data-idx="${idx}" data-field="size_id">${sizeOptions}</select>
-      </td>
-      <td class="num">
-        <input data-idx="${idx}" data-field="qty" type="number" step="0.01" min="0" value="${it.qty ?? ""}" />
-      </td>
-      <td class="num">
-        <input data-idx="${idx}" data-field="unit_price" type="number" step="0.01" min="0" value="${it.unit_price ?? ""}" />
-      </td>
+      <td><select data-idx="${idx}" data-field="product_category_id">${catOptions}</select></td>
+      <td><input data-idx="${idx}" data-field="product_name" type="text" value="${it.product_name ?? ""}" /></td>
+      <td><select data-idx="${idx}" data-field="color_id">${colorOptions}</select></td>
+      <td><select data-idx="${idx}" data-field="size_id">${sizeOptions}</select></td>
+      <td class="num"><input data-idx="${idx}" data-field="qty" type="number" step="0.01" min="0" value="${it.qty ?? ""}" /></td>
+      <td class="num"><input data-idx="${idx}" data-field="unit_price" type="number" step="0.01" min="0" value="${it.unit_price ?? ""}" /></td>
       <td class="num">${to2(lineTotal)}</td>
-      <td class="num">
-        <button class="btn secondary" data-action="remove" data-idx="${idx}">Remove</button>
-      </td>
+      <td class="num"><button class="btn secondary" data-action="remove" data-idx="${idx}">Remove</button></td>
     `;
 
     tbody.appendChild(tr);
@@ -535,7 +538,8 @@ async function loadRecentOrders() {
     const location = listNameById(LISTS.locations, o.location_id);
 
     const statusOptions = ["NEW","PREPARED","DELIVERING","COMPLETED","CANCELLED"]
-      .map(s => `<option value="${s}" ${o.status===s?"selected":""}>${s}</option>`).join("");
+      .map(s => `<option value="${s}" ${o.status===s?"selected":""}>${s}</option>`)
+      .join("");
 
     tr.innerHTML = `
       <td>${o.order_date}</td>
@@ -544,29 +548,32 @@ async function loadRecentOrders() {
       <td>${o.currency}</td>
       <td class="num">${to2(o.order_total)}</td>
       <td class="num">
-        <input class="inlineInput" data-order="${o.id}" data-field="paid_amount" type="number" step="0.01" min="0" value="${to2(o.paid_amount)}" />
+        <input data-order="${o.id}" type="number" step="0.01" min="0" value="${to2(o.paid_amount)}" />
       </td>
       <td>${o.payment_status}</td>
       <td>
-        <select class="inlineSelect" data-order="${o.id}" data-field="status">${statusOptions}</select>
+        <select data-order="${o.id}">${statusOptions}</select>
       </td>
       <td>
-        <buttonbutton class="btn" data-action="print" data-order="${o.id}">Print</button>
-        <button class="btn secondary" data-action="saveRow" data-order="${o.id}">Update</button>
+        <button class="btn" data-action="print" data-order="${o.id}">Print</button>
+        <button class="btn secondary" data-action="update" data-order="${o.id}">Update</button>
       </td>
     `;
+
     tbody.appendChild(tr);
   });
 
-  tbody.querySelectorAll("button[data-action='saveRow']").forEach(btn => {
+  // Update button handlers
+  tbody.querySelectorAll("button[data-action='update']").forEach(btn => {
     btn.addEventListener("click", async () => {
       const orderId = btn.dataset.order;
-      const paidEl = tbody.querySelector(`input[data-order="${orderId}"][data-field="paid_amount"]`);
-      const statusEl = tbody.querySelector(`select[data-order="${orderId}"][data-field="status"]`);
+      const paidEl = tbody.querySelector(`input[data-order="${orderId}"]`);
+      const statusEl = tbody.querySelector(`select[data-order="${orderId}"]`);
       await updateOrder(orderId, num(paidEl.value), statusEl.value);
     });
   });
 
+  // Print handlers
   tbody.querySelectorAll("button[data-action='print']").forEach(btn => {
     btn.addEventListener("click", async () => {
       await printPackingSlip(btn.dataset.order);
@@ -808,4 +815,142 @@ async function loadDashboard() {
     .rpc("get_dashboard_summary", { date_from, date_to });
 
   if (sErr) {
-    showMsg(msg, `Dashboard summary failed: ${sErr.message}`, "e
+    showMsg(msg, `Dashboard summary failed: ${sErr.message}`, "error");
+    return;
+  }
+
+  $("kpiInv").textContent = to2(summary.total_inventory_in_usd);
+  $("kpiSales").textContent = `USD ${to2(summary.sales_usd)} • KHR ${to2(summary.sales_khr)} • RMB ${to2(summary.sales_rmb)}`;
+  $("kpiExp").textContent = `USD ${to2(summary.expenses_usd)} • KHR ${to2(summary.expenses_khr)} • RMB ${to2(summary.expenses_rmb)}`;
+
+  const { data: remain, error: rErr } = await sb
+    .rpc("get_remaining_inventory", { date_to });
+
+  if (rErr) {
+    showMsg(msg, `Remaining inventory failed: ${rErr.message}`, "error");
+    return;
+  }
+
+  const tbody = $("remainTable").querySelector("tbody");
+  tbody.innerHTML = "";
+
+  (remain || []).forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.location}</td>
+      <td>${r.product_category}</td>
+      <td>${r.product_name}</td>
+      <td>${r.color}</td>
+      <td>${r.size}</td>
+      <td class="num">${to2(r.total_in)}</td>
+      <td class="num">${to2(r.total_sold)}</td>
+      <td class="num"><strong>${to2(r.remaining_qty)}</strong></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  showMsg(msg, "Dashboard loaded.", "success");
+}
+
+async function exportRemainingCsv() {
+  const msg = $("dashMsg");
+  hideMsg(msg);
+
+  const date_to = $("dashTo").value;
+  if (!date_to) {
+    showMsg(msg, "Please set Date To first.", "error");
+    return;
+  }
+
+  const { data: remain, error } = await sb
+    .rpc("get_remaining_inventory", { date_to });
+
+  if (error) {
+    showMsg(msg, `Export failed: ${error.message}`, "error");
+    return;
+  }
+
+  const headers = ["location","product_category","product_name","color","size","total_in","total_sold","remaining_qty"];
+  const lines = [headers.join(",")];
+
+  (remain || []).forEach(r => {
+    const row = [
+      csvEscape(r.location),
+      csvEscape(r.product_category),
+      csvEscape(r.product_name),
+      csvEscape(r.color),
+      csvEscape(r.size),
+      to2(r.total_in),
+      to2(r.total_sold),
+      to2(r.remaining_qty),
+    ];
+    lines.push(row.join(","));
+  });
+
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `remaining_inventory_as_of_${date_to}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+  showMsg(msg, "CSV exported.", "success");
+}
+
+// ---------- Init ----------
+function bindEvents() {
+  // Auth
+  $("btnSignIn").addEventListener("click", signIn);
+  $("btnSignUp").addEventListener("click", signUp);
+  $("btnSignOut").addEventListener("click", signOut);
+
+  // Inventory
+  ["invQty","invUnitRmb","invFx"].forEach(id => {
+    $(id).addEventListener("input", recalcInventory);
+  });
+  $("btnSaveInventory").addEventListener("click", saveInventory);
+  $("btnClearInventory").addEventListener("click", clearInventoryForm);
+
+  // Sales
+  $("btnAddItem").addEventListener("click", addEmptyItem);
+  $("btnSaveOrder").addEventListener("click", saveOrder);
+  $("btnClearOrder").addEventListener("click", clearOrderForm);
+
+  // Expenses
+  $("btnSaveExpense").addEventListener("click", saveExpense);
+  $("btnClearExpense").addEventListener("click", clearExpenseForm);
+
+  // Dashboard
+  $("btnLoadDash").addEventListener("click", loadDashboard);
+  $("btnExportCsv").addEventListener("click", exportRemainingCsv);
+}
+
+async function main() {
+  setupTabs();
+  bindEvents();
+
+  // Defaults
+  $("invDate").value = todayISO();
+  $("soDate").value = todayISO();
+  $("expDate").value = todayISO();
+  $("invUnitUsd").value = "0.00";
+  $("invAmountUsd").value = "0.00";
+
+  // Sales default 2 items
+  currentItems = [];
+  addEmptyItem();
+  addEmptyItem();
+
+  // Auth state changes
+  sb.auth.onAuthStateChange(async () => {
+    await refreshAuthUI();
+  });
+
+  await refreshAuthUI();
+}
+
+main();
