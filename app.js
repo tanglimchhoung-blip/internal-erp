@@ -1,5 +1,6 @@
 // ===============================
 // Internal ERP - app.js (Plain JS)
+// FIX: Use "sb" as Supabase client to avoid name collision
 // ===============================
 
 // 1) PASTE YOUR SUPABASE SETTINGS HERE
@@ -7,8 +8,8 @@
 const SUPABASE_URL = "PASTE_YOUR_SUPABASE_PROJECT_URL_HERE";
 const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_PUBLIC_KEY_HERE";
 
-// Create client (supabase-js is loaded via CDN in index.html)
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Create client (supabase-js is loaded via CDN in index.html as window.supabase)
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ---------- Helpers ----------
 const $ = (id) => document.getElementById(id);
@@ -97,7 +98,7 @@ function setupTabs() {
 
 // ---------- Auth ----------
 async function refreshAuthUI() {
-  const { data } = await supabase.auth.getSession();
+  const { data } = await sb.auth.getSession();
   const session = data.session;
 
   if (!session) {
@@ -134,7 +135,7 @@ async function signIn() {
     return;
   }
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) {
     showMsg(msg, `Login failed: ${error.message}`, "error");
     return;
@@ -156,7 +157,7 @@ async function signUp() {
     return;
   }
 
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { error } = await sb.auth.signUp({ email, password });
   if (error) {
     showMsg(msg, `Sign up failed: ${error.message}`, "error");
     return;
@@ -166,26 +167,24 @@ async function signUp() {
 }
 
 async function signOut() {
-  await supabase.auth.signOut();
+  await sb.auth.signOut();
   await refreshAuthUI();
 }
 
 // ---------- Load dropdown lists ----------
 async function loadAllLists() {
-  // We load only active rows
   const [loc, cat, siz, col, del, exp] = await Promise.all([
-    supabase.from("locations").select("id,name").eq("is_active", true).order("name"),
-    supabase.from("product_categories").select("id,name").eq("is_active", true).order("name"),
-    supabase.from("product_sizes").select("id,name").eq("is_active", true).order("name"),
-    supabase.from("product_colors").select("id,name").eq("is_active", true).order("name"),
-    supabase.from("delivery_companies").select("id,name").eq("is_active", true).order("name"),
-    supabase.from("expense_categories").select("id,name").eq("is_active", true).order("name"),
+    sb.from("locations").select("id,name").eq("is_active", true).order("name"),
+    sb.from("product_categories").select("id,name").eq("is_active", true).order("name"),
+    sb.from("product_sizes").select("id,name").eq("is_active", true).order("name"),
+    sb.from("product_colors").select("id,name").eq("is_active", true).order("name"),
+    sb.from("delivery_companies").select("id,name").eq("is_active", true).order("name"),
+    sb.from("expense_categories").select("id,name").eq("is_active", true).order("name"),
   ]);
 
   const anyErr = [loc, cat, siz, col, del, exp].find(r => r.error);
   if (anyErr) {
     console.error(anyErr.error);
-    // We show a friendly message in dashboard area
     showMsg($("dashMsg"), "Failed to load dropdown lists. Check RLS + login.", "error");
     return;
   }
@@ -197,21 +196,17 @@ async function loadAllLists() {
   LISTS.delivery = del.data || [];
   LISTS.expcats = exp.data || [];
 
-  // Inventory selects
   setSelectOptions($("invLocation"), LISTS.locations, "Select...");
   setSelectOptions($("invCategory"), LISTS.categories, "Select...");
   setSelectOptions($("invColor"), LISTS.colors, "Select...");
   setSelectOptions($("invSize"), LISTS.sizes, "Select...");
 
-  // Sales header selects
   setSelectOptions($("soLocation"), LISTS.locations, "Select...");
   setSelectOptions($("soDelivery"), LISTS.delivery, "Select...");
 
-  // Expenses selects
   setSelectOptions($("expLocation"), LISTS.locations, "Select...");
   setSelectOptions($("expCategory"), LISTS.expcats, "Select...");
 
-  // If you want default first options auto-selected
   if (LISTS.locations[0]) {
     $("invLocation").value = String(LISTS.locations[0].id);
     $("soLocation").value = String(LISTS.locations[0].id);
@@ -287,7 +282,7 @@ async function saveInventory() {
     note
   };
 
-  const { error } = await supabase.from("inventory_in").insert(payload);
+  const { error } = await sb.from("inventory_in").insert(payload);
   if (error) {
     showMsg(msg, `Save failed: ${error.message}`, "error");
     return;
@@ -299,7 +294,7 @@ async function saveInventory() {
 }
 
 async function loadRecentInventory() {
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from("inventory_in")
     .select("*")
     .order("date", { ascending: false })
@@ -410,18 +405,16 @@ function renderItemsTable() {
     tbody.appendChild(tr);
   });
 
-  // Change handlers
   tbody.querySelectorAll("input,select").forEach(el => {
     el.addEventListener("input", () => {
       const idx = Number(el.dataset.idx);
       const field = el.dataset.field;
       currentItems[idx][field] = el.value;
       calcOrderTotal();
-      renderItemsTable(); // keep line totals updated
+      renderItemsTable();
     });
   });
 
-  // Remove buttons
   tbody.querySelectorAll("button[data-action='remove']").forEach(btn => {
     btn.addEventListener("click", () => removeItem(Number(btn.dataset.idx)));
   });
@@ -442,7 +435,7 @@ function clearOrderForm() {
 
   currentItems = [];
   addEmptyItem();
-  addEmptyItem(); // default 2 lines
+  addEmptyItem();
 }
 
 async function saveOrder() {
@@ -465,7 +458,6 @@ async function saveOrder() {
     return;
   }
 
-  // Validate items
   const cleanedItems = currentItems
     .map(it => ({
       product_category_id: it.product_category_id,
@@ -485,8 +477,7 @@ async function saveOrder() {
 
   const order_total = cleanedItems.reduce((a, b) => a + b.line_total, 0);
 
-  // 1) Insert sales_orders
-  const { data: orderRow, error: orderErr } = await supabase
+  const { data: orderRow, error: orderErr } = await sb
     .from("sales_orders")
     .insert({
       order_date,
@@ -509,11 +500,10 @@ async function saveOrder() {
     return;
   }
 
-  // 2) Insert sales_items
   const order_id = orderRow.id;
   const itemsPayload = cleanedItems.map(it => ({ ...it, order_id }));
 
-  const { error: itemsErr } = await supabase.from("sales_items").insert(itemsPayload);
+  const { error: itemsErr } = await sb.from("sales_items").insert(itemsPayload);
   if (itemsErr) {
     showMsg(msg, `Order saved but items failed: ${itemsErr.message}`, "error");
     return;
@@ -525,8 +515,7 @@ async function saveOrder() {
 }
 
 async function loadRecentOrders() {
-  // Load orders
-  const { data: orders, error: oErr } = await supabase
+  const { data: orders, error: oErr } = await sb
     .from("sales_orders")
     .select("*")
     .order("order_date", { ascending: false })
@@ -562,14 +551,13 @@ async function loadRecentOrders() {
         <select class="inlineSelect" data-order="${o.id}" data-field="status">${statusOptions}</select>
       </td>
       <td>
-        <button class="btn" data-action="print" data-order="${o.id}">Print</button>
+        <buttonbutton class="btn" data-action="print" data-order="${o.id}">Print</button>
         <button class="btn secondary" data-action="saveRow" data-order="${o.id}">Update</button>
       </td>
     `;
     tbody.appendChild(tr);
   });
 
-  // Attach update handlers
   tbody.querySelectorAll("button[data-action='saveRow']").forEach(btn => {
     btn.addEventListener("click", async () => {
       const orderId = btn.dataset.order;
@@ -579,7 +567,6 @@ async function loadRecentOrders() {
     });
   });
 
-  // Print handlers
   tbody.querySelectorAll("button[data-action='print']").forEach(btn => {
     btn.addEventListener("click", async () => {
       await printPackingSlip(btn.dataset.order);
@@ -591,7 +578,7 @@ async function updateOrder(orderId, paid_amount, status) {
   const msg = $("salesMsg");
   hideMsg(msg);
 
-  const { error } = await supabase
+  const { error } = await sb
     .from("sales_orders")
     .update({ paid_amount, status })
     .eq("id", orderId);
@@ -609,7 +596,7 @@ async function printPackingSlip(orderId) {
   const msg = $("salesMsg");
   hideMsg(msg);
 
-  const { data: order, error: oErr } = await supabase
+  const { data: order, error: oErr } = await sb
     .from("sales_orders")
     .select("*")
     .eq("id", orderId)
@@ -620,7 +607,7 @@ async function printPackingSlip(orderId) {
     return;
   }
 
-  const { data: items, error: iErr } = await supabase
+  const { data: items, error: iErr } = await sb
     .from("sales_items")
     .select("*")
     .eq("order_id", orderId)
@@ -707,9 +694,7 @@ async function printPackingSlip(orderId) {
     <div><strong>Note:</strong> ${order.note ?? ""}</div>
   </div>
 
-  <script>
-    window.print();
-  </script>
+  <script>window.print();</script>
 </body>
 </html>
   `;
@@ -745,7 +730,7 @@ async function saveExpense() {
     return;
   }
 
-  const { error } = await supabase.from("expenses").insert({
+  const { error } = await sb.from("expenses").insert({
     date, location_id, expense_category_id, currency, amount, note
   });
 
@@ -760,7 +745,7 @@ async function saveExpense() {
 }
 
 async function loadRecentExpenses() {
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from("expenses")
     .select("*")
     .order("date", { ascending: false })
@@ -791,14 +776,13 @@ async function loadRecentExpenses() {
   });
 }
 
-// ---------- Dashboard / Reports ----------
+// ---------- Dashboard ----------
 function setDefaultDates() {
   const t = todayISO();
   $("invDate").value = t;
   $("soDate").value = t;
   $("expDate").value = t;
 
-  // default range: this month (simple)
   const d = new Date();
   const from = new Date(d.getFullYear(), d.getMonth(), 1);
   const yyyy = from.getFullYear();
@@ -820,148 +804,8 @@ async function loadDashboard() {
     return;
   }
 
-  // 1) Summary via RPC
-  const { data: summary, error: sErr } = await supabase
+  const { data: summary, error: sErr } = await sb
     .rpc("get_dashboard_summary", { date_from, date_to });
 
   if (sErr) {
-    showMsg(msg, `Dashboard summary failed: ${sErr.message}`, "error");
-    return;
-  }
-
-  $("kpiInv").textContent = to2(summary.total_inventory_in_usd);
-  $("kpiSales").textContent = `USD ${to2(summary.sales_usd)} • KHR ${to2(summary.sales_khr)} • RMB ${to2(summary.sales_rmb)}`;
-  $("kpiExp").textContent = `USD ${to2(summary.expenses_usd)} • KHR ${to2(summary.expenses_khr)} • RMB ${to2(summary.expenses_rmb)}`;
-
-  // 2) Remaining inventory via RPC (uses date_to)
-  const { data: remain, error: rErr } = await supabase
-    .rpc("get_remaining_inventory", { date_to });
-
-  if (rErr) {
-    showMsg(msg, `Remaining inventory failed: ${rErr.message}`, "error");
-    return;
-  }
-
-  const tbody = $("remainTable").querySelector("tbody");
-  tbody.innerHTML = "";
-
-  (remain || []).forEach(r => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${r.location}</td>
-      <td>${r.product_category}</td>
-      <td>${r.product_name}</td>
-      <td>${r.color}</td>
-      <td>${r.size}</td>
-      <td class="num">${to2(r.total_in)}</td>
-      <td class="num">${to2(r.total_sold)}</td>
-      <td class="num"><strong>${to2(r.remaining_qty)}</strong></td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  showMsg(msg, "Dashboard loaded.", "success");
-}
-
-async function exportRemainingCsv() {
-  const msg = $("dashMsg");
-  hideMsg(msg);
-
-  const date_to = $("dashTo").value;
-  if (!date_to) {
-    showMsg(msg, "Please set Date To first.", "error");
-    return;
-  }
-
-  const { data: remain, error } = await supabase
-    .rpc("get_remaining_inventory", { date_to });
-
-  if (error) {
-    showMsg(msg, `Export failed: ${error.message}`, "error");
-    return;
-  }
-
-  const headers = ["location","product_category","product_name","color","size","total_in","total_sold","remaining_qty"];
-  const lines = [headers.join(",")];
-
-  (remain || []).forEach(r => {
-    const row = [
-      csvEscape(r.location),
-      csvEscape(r.product_category),
-      csvEscape(r.product_name),
-      csvEscape(r.color),
-      csvEscape(r.size),
-      to2(r.total_in),
-      to2(r.total_sold),
-      to2(r.remaining_qty),
-    ];
-    lines.push(row.join(","));
-  });
-
-  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `remaining_inventory_as_of_${date_to}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  URL.revokeObjectURL(url);
-  showMsg(msg, "CSV exported.", "success");
-}
-
-// ---------- Init ----------
-function bindEvents() {
-  // Auth
-  $("btnSignIn").addEventListener("click", signIn);
-  $("btnSignUp").addEventListener("click", signUp);
-  $("btnSignOut").addEventListener("click", signOut);
-
-  // Inventory calc
-  ["invQty","invUnitRmb","invFx"].forEach(id => {
-    $(id).addEventListener("input", recalcInventory);
-  });
-  $("btnSaveInventory").addEventListener("click", saveInventory);
-  $("btnClearInventory").addEventListener("click", clearInventoryForm);
-
-  // Sales
-  $("btnAddItem").addEventListener("click", addEmptyItem);
-  $("btnSaveOrder").addEventListener("click", saveOrder);
-  $("btnClearOrder").addEventListener("click", clearOrderForm);
-
-  // Expenses
-  $("btnSaveExpense").addEventListener("click", saveExpense);
-  $("btnClearExpense").addEventListener("click", clearExpenseForm);
-
-  // Dashboard
-  $("btnLoadDash").addEventListener("click", loadDashboard);
-  $("btnExportCsv").addEventListener("click", exportRemainingCsv);
-}
-
-async function main() {
-  setupTabs();
-  bindEvents();
-
-  // defaults for forms (before login is okay)
-  $("invDate").value = todayISO();
-  $("soDate").value = todayISO();
-  $("expDate").value = todayISO();
-  $("invUnitUsd").value = "0.00";
-  $("invAmountUsd").value = "0.00";
-
-  // Sales default items
-  currentItems = [];
-  addEmptyItem();
-  addEmptyItem();
-
-  // Listen for auth changes
-  supabase.auth.onAuthStateChange(async () => {
-    await refreshAuthUI();
-  });
-
-  await refreshAuthUI();
-}
-
-main();
+    showMsg(msg, `Dashboard summary failed: ${sErr.message}`, "e
