@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Internal ERP</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">ERP</div>
+      <div>
+        <div class="title">Internal ERP</div>
+        <div class="subtitle">Inventory • Sales • Expenses • Dashboard</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <div id="userBadge" class="badge hidden"></div>
+      <button id="btnSignOut" class="btn secondary hidden">Sign out</button>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- AUTH -->
+    <section id="authSection" class="card">
+      <h2>Login</h2>
+      <p class="muted">Use your Supabase email/password account.</p>
+
+      <div class="grid2">
+        <div>
+          <label>Email</label>
+          <input id="authEmail" type="email" placeholder="you@company.com" autocomplete="username" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+      </div>
+
+      <div class="row gap">
+        <button id="btnSignIn" class="btn primary">Sign in</button>
+        <button id="btnSignUp" class="btn">Sign up (optional)</button>
+      </div>
+
+      <div id="authMsg" class="msg hidden"></div>
+    </section>
+
+    <!-- APP -->
+    <section id="appSection" class="hidden">
+
+      <nav class="tabs">
+        <button class="tab active" data-tab="tabInv">Inventory IN</button>
+        <button class="tab" data-tab="tabSales">Sales</button>
+        <button class="tab" data-tab="tabExp">Expenses</button>
+        <button class="tab" data-tab="tabDash">Dashboard / Reports</button>
+      </nav>
+
+      <!-- INVENTORY IN -->
+      <section id="tabInv" class="tabPanel card">
+        <h2>Inventory IN (Stock In)</h2>
+
+        <div class="grid3">
+          <div>
+            <label>Date</label>
+            <input id="invDate" type="date" />
+          </div>
+          <div>
+            <label>Location</label>
+            <select id="invLocation"></select>
+          </div>
+          <div>
+            <label>Product Category</label>
+            <select id="invCategory"></select>
+          </div>
+
+          <div>
+            <label>Product Name</label>
+            <input id="invProductName" type="text" placeholder="e.g., Magic Toilet Flush" />
+          </div>
+          <div>
+            <label>Color</label>
+            <select id="invColor"></select>
+          </div>
+          <div>
+            <label>Size</label>
+            <select id="invSize"></select>
+          </div>
+
+          <div>
+            <label>Qty</label>
+            <input id="invQty" type="number" step="0.01" min="0" />
+          </div>
+          <div>
+            <label>Unit Price (RMB)</label>
+            <input id="invUnitRmb" type="number" step="0.01" min="0" />
+          </div>
+          <div>
+            <label>FX RMB/USD (2 decimals)</label>
+            <input id="invFx" type="number" step="0.01" min="0" />
+          </div>
+
+          <div>
+            <label>Unit Price (USD) auto</label>
+            <input id="invUnitUsd" type="text" disabled />
+          </div>
+          <div>
+            <label>Amount (USD) auto</label>
+            <input id="invAmountUsd" type="text" disabled />
+          </div>
+          <div>
+            <label>Note</label>
+            <input id="invNote" type="text" placeholder="optional" />
+          </div>
+        </div>
+
+        <div class="row gap">
+          <button id="btnSaveInventory" class="btn primary">Save Inventory IN</button>
+          <button id="btnClearInventory" class="btn secondary">Clear</button>
+        </div>
+
+        <div id="invMsg" class="msg hidden"></div>
+
+        <hr class="sep" />
+        <h3>Recent Inventory IN</h3>
+        <div class="tableWrap">
+          <table class="table" id="invTable">
+            <thead>
+              <tr>
+                <th>Date</th><th>Location</th><th>Category</th><th>Product</th>
+                <th>Color</th><th>Size</th><th class="num">Qty</th>
+                <th class="num">Unit USD</th><th class="num">Amount USD</th><th>Note</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SALES -->
+      <section id="tabSales" class="tabPanel card hidden">
+        <h2>Sales Order</h2>
+
+        <div class="grid3">
+          <div>
+            <label>Order Date</label>
+            <input id="soDate" type="date" />
+          </div>
+          <div>
+            <label>Location</label>
+            <select id="soLocation"></select>
+          </div>
+          <div>
+            <label>Delivery Company</label>
+            <select id="soDelivery"></select>
+          </div>
+
+          <div>
+            <label>Customer Name</label>
+            <input id="soCustomer" type="text" />
+          </div>
+          <div>
+            <label>Phone</label>
+            <input id="soPhone" type="text" />
+          </div>
+          <div>
+            <label>Address</label>
+            <input id="soAddress" type="text" />
+          </div>
+
+          <div>
+            <label>Currency</label>
+            <select id="soCurrency">
+              <option value="USD">USD</option>
+              <option value="KHR">KHR</option>
+              <option value="RMB">RMB</option>
+            </select>
+          </div>
+          <div>
+            <label>Paid Amount</label>
+            <input id="soPaid" type="number" step="0.01" min="0" />
+          </div>
+          <div>
+            <label>Cash Timing</label>
+            <select id="soTiming">
+              <option value="BEFORE">BEFORE delivery</option>
+              <option value="AFTER">AFTER delivery</option>
+            </select>
+          </div>
+
+          <div class="span3">
+            <label>Note</label>
+            <input id="soNote" type="text" placeholder="optional" />
+          </div>
+        </div>
+
+        <h3>Order Items</h3>
+        <div class="tableWrap">
+          <table class="table" id="itemsTable">
+            <thead>
+              <tr>
+                <th>Category</th><th>Product</th><th>Color</th><th>Size</th>
+                <th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Line Total</th><th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="row gap">
+          <button id="btnAddItem" class="btn">+ Add Item</button>
+          <div class="spacer"></div>
+          <div class="totals">
+            <div class="muted">Order Total</div>
+            <div id="soTotal" class="big">0.00</div>
+          </div>
+        </div>
+
+        <div class="row gap">
+          <button id="btnSaveOrder" class="btn primary">Save Sales Order</button>
+          <button id="btnClearOrder" class="btn secondary">Clear</button>
+        </div>
+
+        <div id="salesMsg" class="msg hidden"></div>
+
+        <hr class="sep" />
+        <h3>Recent Orders</h3>
+        <div class="tableWrap">
+          <table class="table" id="ordersTable">
+            <thead>
+              <tr>
+                <th>Date</th><th>Customer</th><th>Location</th><th>Currency</th>
+                <th class="num">Total</th><th class="num">Paid</th><th>Payment</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- EXPENSES -->
+      <section id="tabExp" class="tabPanel card hidden">
+        <h2>Expenses</h2>
+
+        <div class="grid3">
+          <div>
+            <label>Date</label>
+            <input id="expDate" type="date" />
+          </div>
+          <div>
+            <label>Location</label>
+            <select id="expLocation"></select>
+          </div>
+          <div>
+            <label>Expense Category</label>
+            <select id="expCategory"></select>
+          </div>
+
+          <div>
+            <label>Currency</label>
+            <select id="expCurrency">
+              <option value="USD">USD</option>
+              <option value="KHR">KHR</option>
+              <option value="RMB">RMB</option>
+            </select>
+          </div>
+          <div>
+            <label>Amount</label>
+            <input id="expAmount" type="number" step="0.01" min="0" />
+          </div>
+          <div>
+            <label>Note</label>
+            <input id="expNote" type="text" placeholder="optional" />
+          </div>
+        </div>
+
+        <div class="row gap">
+          <button id="btnSaveExpense" class="btn primary">Save Expense</button>
+          <button id="btnClearExpense" class="btn secondary">Clear</button>
+        </div>
+
+        <div id="expMsg" class="msg hidden"></div>
+
+        <hr class="sep" />
+        <h3>Recent Expenses</h3>
+        <div class="tableWrap">
+          <table class="table" id="expTable">
+            <thead>
+              <tr>
+                <th>Date</th><th>Location</th><th>Category</th><th>Currency</th><th class="num">Amount</th><th>Note</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- DASHBOARD -->
+      <section id="tabDash" class="tabPanel card hidden">
+        <h2>Dashboard / Reports</h2>
+
+        <div class="grid3">
+          <div>
+            <label>Date From</label>
+            <input id="dashFrom" type="date" />
+          </div>
+          <div>
+            <label>Date To</label>
+            <input id="dashTo" type="date" />
+          </div>
+          <div class="row gap alignEnd">
+            <button id="btnLoadDash" class="btn primary">Load Report</button>
+            <button id="btnExportCsv" class="btn">Export Remaining CSV</button>
+          </div>
+        </div>
+
+        <div class="cards">
+          <div class="card mini">
+            <div class="muted">Total Inventory IN (USD)</div>
+            <div id="kpiInv" class="kpi">0.00</div>
+          </div>
+          <div class="card mini">
+            <div class="muted">Total Sales</div>
+            <div id="kpiSales" class="kpi">USD 0.00 • KHR 0.00 • RMB 0.00</div>
+          </div>
+          <div class="card mini">
+            <div class="muted">Total Expenses</div>
+            <div id="kpiExp" class="kpi">USD 0.00 • KHR 0.00 • RMB 0.00</div>
+          </div>
+        </div>
+
+        <hr class="sep" />
+        <h3>Remaining Inventory</h3>
+        <p class="muted">Grouped by location + category + product + color + size. Remaining = total_in - total_sold.</p>
+        <div class="tableWrap">
+          <table class="table" id="remainTable">
+            <thead>
+              <tr>
+                <th>Location</th><th>Category</th><th>Product</th><th>Color</th><th>Size</th>
+                <th class="num">Total In</th><th class="num">Total Sold</th><th class="num">Remaining</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div id="dashMsg" class="msg hidden"></div>
+      </section>
+
+    </section>
+  </main>
+
+  <!-- Supabase JS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
