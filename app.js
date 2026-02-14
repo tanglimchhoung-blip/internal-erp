@@ -5,7 +5,7 @@
 
 // 1) PUT YOUR REAL SUPABASE SETTINGS HERE
 const SUPABASE_URL = "https://zjadnfosmsihjxdwruff.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_Iwp98RuRIFiaUVY3AcobA_rG36EfM…"; // <-- keep your full key here
+const SUPABASE_ANON_KEY = "sb_publishable_IWp98Ru-RIFiaUVY3AcobA_rG36EfMv"; // <-- keep your full key here
 
 // 2) Create Supabase client (supabase-js v2 is loaded in index.html via CDN)
 const sb = window.supabase?.createClient
