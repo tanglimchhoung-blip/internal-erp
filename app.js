@@ -1,268 +1,203 @@
 // ===============================
 // Internal ERP - app.js (Stable Plain JS)
-// Purpose: reliable Supabase Auth + basic UI toggling
+// - Solid Supabase Auth
+// - Never blank screen
+// - Clean tab navigation
 // ===============================
 
-// 1) PUT YOUR REAL SUPABASE SETTINGS HERE
+// 1) PASTE YOUR SUPABASE SETTINGS (FULL values, no "...")
 const SUPABASE_URL = "https://zjadnfosmsihjxdwruff.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_IWp98Ru-RIFiaUVY3AcobA_rG36EfMv"; // <-- keep your full key here
+const SUPABASE_ANON_KEY = "PASTE_YOUR_FULL_sb_publishable_KEY_HERE";
 
-// 2) Create Supabase client (supabase-js v2 is loaded in index.html via CDN)
-const sb = window.supabase?.createClient
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
+// 2) Create client
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// -------------------------------
-// Helpers (safe element finding)
-// -------------------------------
-function qs(sel) { return document.querySelector(sel); }
-function qsa(sel) { return Array.from(document.querySelectorAll(sel)); }
+// ----------------- Small helpers
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-function findInputEmail() {
-  return qs("#loginEmail") || qs("#email") || qs('input[type="email"]') || qs('input[name="email"]');
-}
-function findInputPassword() {
-  return qs("#loginPassword") || qs("#password") || qs('input[type="password"]') || qs('input[name="password"]');
-}
+function show(el) { el.classList.remove("hidden"); }
+function hide(el) { el.classList.add("hidden"); }
 
-function findButtonByText(text) {
-  const buttons = qsa("button");
-  return buttons.find(b => (b.textContent || "").trim().toLowerCase() === text.toLowerCase()) || null;
-}
-function findSignInButton() {
-  return qs("#btnSignIn") || qs("#signInBtn") || qs('[data-action="signin"]') || findButtonByText("Sign in");
-}
-function findSignUpButton() {
-  return qs("#btnSignUp") || qs("#signUpBtn") || qs('[data-action="signup"]') || findButtonByText("Sign up (optional)") || findButtonByText("Sign up");
-}
-
-function findLoginCard() {
-  // Try common ids first
-  return qs("#loginSection") || qs("#loginCard") || qs("#authCard") || qs("#authSection") ||
-    // fallback: locate the heading "Login" then take the closest container
-    (qsa("h1,h2,h3").find(h => (h.textContent || "").trim().toLowerCase() === "login")?.closest("section,div,main") || null);
-}
-
-function findAppMain() {
-  return qs("#appSection") || qs("#appMain") || qs("main");
-}
-
-function ensureMsgBox() {
-  // Preferred existing element
-  let el = qs("#loginMsg") || qs("#authMsg");
-  if (el) return el;
-
-  // Create one under the login card
-  const card = findLoginCard() || qs("body");
-  el = document.createElement("div");
-  el.id = "loginMsg";
-  el.style.marginTop = "12px";
-  el.style.padding = "10px 12px";
-  el.style.borderRadius = "10px";
-  el.style.fontSize = "14px";
-  el.style.display = "none";
-  card.appendChild(el);
-  return el;
-}
-
-function showMsg(type, text) {
-  const el = ensureMsgBox();
-  el.style.display = "block";
+function setMsg(el, type, text) {
+  el.classList.remove("hidden", "error", "ok");
+  el.classList.add(type === "error" ? "error" : "ok");
   el.textContent = text;
-
-  if (type === "error") {
-    el.style.background = "#fff5f5";
-    el.style.border = "1px solid #fecaca";
-    el.style.color = "#991b1b";
-  } else {
-    el.style.background = "#f0fdf4";
-    el.style.border = "1px solid #bbf7d0";
-    el.style.color = "#166534";
-  }
 }
-
-function hideMsg() {
-  const el = ensureMsgBox();
-  el.style.display = "none";
+function clearMsg(el) {
+  el.classList.add("hidden");
   el.textContent = "";
+  el.classList.remove("error", "ok");
 }
 
-function setAuthUI(isAuthed) {
-  const loginCard = findLoginCard();
-  const appMain = findAppMain();
+// ----------------- UI references
+const loginSection = () => $("#loginSection");
+const appSection = () => $("#appSection");
+const loginMsg = () => $("#loginMsg");
+const btnSignOut = () => $("#btnSignOut");
 
-  // Add a body class so CSS can react if you want later
-  document.body.classList.toggle("authed", !!isAuthed);
-
-  // Hide/show login card
-  if (loginCard) loginCard.style.display = isAuthed ? "none" : "block";
-
-  // If your app sections are already inside main, we keep main visible,
-  // but you may have sections hidden by CSS. This ensures main is visible.
-  if (appMain) appMain.style.display = "block";
+function setAuthedUI(isAuthed) {
+  // This guarantees the UI is never blank
+  if (isAuthed) {
+    hide(loginSection());
+    show(appSection());
+    show(btnSignOut());
+  } else {
+    show(loginSection());
+    hide(appSection());
+    hide(btnSignOut());
+  }
 }
 
-// -------------------------------
-// Auth actions
-// -------------------------------
-async function doSignIn() {
-  hideMsg();
+// ----------------- Tabs
+function activateTab(key) {
+  $$(".tab").forEach(b => b.classList.remove("active"));
+  $$(".tabpane").forEach(p => p.classList.add("hidden"));
 
-  if (!sb) {
-    showMsg("error", "Supabase client not loaded. Check index.html includes the Supabase CDN script.");
-    return;
-  }
-  if (!/^https:\/\/.+\.supabase\.co\/?$/.test(SUPABASE_URL)) {
-    showMsg("error", "Supabase URL looks invalid. It must be like: https://xxxx.supabase.co");
-    return;
-  }
-  if (!SUPABASE_ANON_KEY || !SUPABASE_ANON_KEY.startsWith("sb_")) {
-    showMsg("error", "Supabase key looks invalid. Use the Publishable key (sb_publishable_...).");
-    return;
-  }
+  const tabBtn = $(`.tab[data-tab="${key}"]`);
+  const pane =
+    key === "inv" ? $("#tab-inv") :
+    key === "sales" ? $("#tab-sales") :
+    key === "exp" ? $("#tab-exp") :
+    $("#tab-dash");
 
-  const emailEl = findInputEmail();
-  const passEl = findInputPassword();
-  const btn = findSignInButton();
+  if (tabBtn) tabBtn.classList.add("active");
+  if (pane) pane.classList.remove("hidden");
+}
 
-  const email = (emailEl?.value || "").trim();
-  const password = (passEl?.value || "").trim();
+function wireTabs() {
+  $$(".tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activateTab(btn.dataset.tab);
+    });
+  });
+}
+
+// ----------------- Auth
+async function signIn() {
+  const email = $("#loginEmail").value.trim();
+  const password = $("#loginPassword").value.trim();
+  const msg = loginMsg();
+  clearMsg(msg);
 
   if (!email || !password) {
-    showMsg("error", "Please enter both email and password.");
+    setMsg(msg, "error", "Please enter both email and password.");
     return;
   }
 
-  if (btn) {
-    btn.disabled = true;
-    btn.dataset.originalText = btn.textContent;
-    btn.textContent = "Signing in...";
-  }
+  // Prevent spam-click
+  const btn = $("#btnSignIn");
+  btn.disabled = true;
+  btn.textContent = "Signing in...";
 
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
 
     if (error) {
-      // Supabase returns meaningful error messages
-      showMsg("error", `Login failed: ${error.message}`);
+      setMsg(msg, "error", `Login failed: ${error.message}`);
       return;
     }
 
-    // Confirm session exists
-    const session = data?.session;
-    if (!session) {
-      showMsg("error", "Login did not return a session. Try again once. If it repeats, check Supabase Auth settings.");
+    if (!data?.session) {
+      setMsg(msg, "error", "Login did not return a session. Check Supabase Auth settings.");
       return;
     }
 
-    showMsg("success", "Signed in successfully.");
-    setAuthUI(true);
-
-    // OPTIONAL: after login you might want to load dropdown lists etc.
-    // For now we just move past login. Your existing code can continue from here if needed.
+    setMsg(msg, "ok", "Signed in successfully.");
+    setAuthedUI(true);
+    activateTab("inv");
   } catch (e) {
-    showMsg("error", `Login failed: ${e?.message || e}`);
+    setMsg(msg, "error", `Login failed: ${e?.message || e}`);
   } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = btn.dataset.originalText || "Sign in";
-    }
+    btn.disabled = false;
+    btn.textContent = "Sign in";
   }
 }
 
-async function doSignUp() {
-  hideMsg();
-
-  const emailEl = findInputEmail();
-  const passEl = findInputPassword();
-  const btn = findSignUpButton();
-
-  const email = (emailEl?.value || "").trim();
-  const password = (passEl?.value || "").trim();
+async function signUp() {
+  const email = $("#loginEmail").value.trim();
+  const password = $("#loginPassword").value.trim();
+  const msg = loginMsg();
+  clearMsg(msg);
 
   if (!email || !password) {
-    showMsg("error", "Please enter both email and password to sign up.");
+    setMsg(msg, "error", "Please enter both email and password to sign up.");
     return;
   }
 
-  if (btn) {
-    btn.disabled = true;
-    btn.dataset.originalText = btn.textContent;
-    btn.textContent = "Signing up...";
-  }
+  const btn = $("#btnSignUp");
+  btn.disabled = true;
+  btn.textContent = "Signing up...";
 
   try {
     const { data, error } = await sb.auth.signUp({ email, password });
+
     if (error) {
-      showMsg("error", `Sign up failed: ${error.message}`);
+      setMsg(msg, "error", `Sign up failed: ${error.message}`);
       return;
     }
 
-    // Depending on Supabase settings, user may need email confirmation
     if (!data?.session) {
-      showMsg("success", "Sign up ok. If email confirmation is enabled, confirm your email then sign in.");
-    } else {
-      showMsg("success", "Signed up and logged in.");
-      setAuthUI(true);
+      setMsg(msg, "ok", "Sign up OK. If email confirmation is ON, confirm email then sign in.");
+      return;
     }
+
+    setMsg(msg, "ok", "Signed up and logged in.");
+    setAuthedUI(true);
+    activateTab("inv");
   } catch (e) {
-    showMsg("error", `Sign up failed: ${e?.message || e}`);
+    setMsg(msg, "error", `Sign up failed: ${e?.message || e}`);
   } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = btn.dataset.originalText || "Sign up (optional)";
-    }
+    btn.disabled = false;
+    btn.textContent = "Sign up (optional)";
   }
 }
 
-async function restoreSessionOnLoad() {
-  if (!sb) return;
+async function signOut() {
+  await sb.auth.signOut();
+  setAuthedUI(false);
+  clearMsg(loginMsg());
+}
 
+// Restore session on load + listen
+async function restoreSession() {
   const { data } = await sb.auth.getSession();
-  const session = data?.session;
+  setAuthedUI(!!data?.session);
 
-  if (session) {
-    setAuthUI(true);
-  } else {
-    setAuthUI(false);
-  }
-
-  // Listen to auth changes (important)
-  sb.auth.onAuthStateChange((_event, sessionNow) => {
-    setAuthUI(!!sessionNow);
+  sb.auth.onAuthStateChange((_event, session) => {
+    setAuthedUI(!!session);
+    if (session) activateTab("inv");
   });
+
+  // default tab
+  activateTab("inv");
 }
 
-// -------------------------------
-// Init (wire buttons)
-// -------------------------------
+// ----------------- Init
 document.addEventListener("DOMContentLoaded", async () => {
-  // Prevent the "extension async listener" console error from confusing you:
-  // It doesn't affect our code.
-
-  if (!sb) {
-    showMsg("error", "Supabase library not loaded. In index.html you must have: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2");
+  // If URL/key wrong, show it clearly (prevents silent blank)
+  if (!SUPABASE_URL.startsWith("https://") || !SUPABASE_URL.includes(".supabase.co")) {
+    setMsg(loginMsg(), "error", "Supabase URL is invalid. It must be like https://xxxx.supabase.co");
+    return;
+  }
+  if (!SUPABASE_ANON_KEY.startsWith("sb_")) {
+    setMsg(loginMsg(), "error", "Supabase key is missing/invalid. Paste the FULL sb_publishable_ key in app.js.");
     return;
   }
 
-  // Wire buttons
-  const btnSignIn = findSignInButton();
-  const btnSignUp = findSignUpButton();
+  wireTabs();
 
-  if (btnSignIn) btnSignIn.addEventListener("click", (e) => { e.preventDefault(); doSignIn(); });
-  if (btnSignUp) btnSignUp.addEventListener("click", (e) => { e.preventDefault(); doSignUp(); });
+  $("#btnSignIn").addEventListener("click", (e) => { e.preventDefault(); signIn(); });
+  $("#btnSignUp").addEventListener("click", (e) => { e.preventDefault(); signUp(); });
+  $("#btnSignOut").addEventListener("click", (e) => { e.preventDefault(); signOut(); });
 
-  // Also allow pressing Enter in password field
-  const passEl = findInputPassword();
-  if (passEl) {
-    passEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        doSignIn();
-      }
-    });
-  }
+  // Press Enter to sign in
+  $("#loginPassword").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      signIn();
+    }
+  });
 
-  // Restore session
-  await restoreSessionOnLoad();
+  await restoreSession();
 });
