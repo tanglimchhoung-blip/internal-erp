@@ -7,7 +7,7 @@
 
 // 1) PASTE YOUR SUPABASE SETTINGS (FULL values, no "...")
 const SUPABASE_URL = "https://zjadnfosmsihjxdwruff.supabase.co";
-const SUPABASE_ANON_KEY = "PASTE_YOUR_FULL_sb_publishable_KEY_HERE";
+const SUPABASE_ANON_KEY = "sb_publishable_IWp98Ru-RIFiaUVY3AcobA_rG36EfMv";
 
 // 2) Create client
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
